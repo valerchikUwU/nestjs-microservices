@@ -1,0 +1,3 @@
+user valerchik on >1234 +@all -@dangerous +info +keys +acl|list +acl|getuser ~*
+
+user default off

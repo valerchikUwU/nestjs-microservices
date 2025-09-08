@@ -1,0 +1,182 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    # command:
+    #   - "postgres"
+    #   - "-c"
+    #   - "max_connections=50"
+    #   - "-c"
+    #   - "shared_buffers=1GB"
+    #   - "-c"
+    #   - "effective_cache_size=4GB"
+    #   - "-c"
+    #   - "work_mem=16MB"
+    #   - "-c"
+    #   - "maintenance_work_mem=512MB"
+    #   - "-c"
+    #   - "random_page_cost=1.1"
+    #   - "-c"
+    #   - "temp_file_limit=10GB"
+    #   - "-c"
+    #   - "log_min_duration_statement=200ms"
+    #   - "-c"
+    #   - "idle_in_transaction_session_timeout=10s"
+    #   - "-c"
+    #   - "lock_timeout=1s"
+    #   - "-c"
+    #   - "statement_timeout=60s"
+    #   - "-c"
+    #   - "shared_preload_libraries=pg_stat_statements"
+    #   - "-c"
+    #   - "pg_stat_statements.max=10000"
+    #   - "-c"
+    #   - "pg_stat_statements.track=all"
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-multi-postgres-databases.sh:/docker-entrypoint-initdb.d/init-multi-postgres-databases.sh
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    container_name: nest-pgadmin4
+    logging:
+      driver: "none"
+    env_file: ".env"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - '5050:80'
+    depends_on:
+      - postgres
+
+
+  nats:
+    image: nats:2.9-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: >
+      --js
+      --http_port 8222
+
+  redis:
+    container_name: cache
+    image: redis
+    volumes:
+      - ./redis_data:/var/lib/redis
+      - ./shared/src/lib/config/redis.conf:/usr/local/etc/redis/redis.conf  # Конфигурационный файл
+      - ./shared/src/lib/config/users.acl:/var/lib/redis/users.acl  # Файл с ACL пользователей
+    env_file:
+      - .env
+    ports:
+      - 6379:6379
+    command: redis-server /usr/local/etc/redis/redis.conf  # Запуск Redis с конфигурационным файлом
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    volumes:
+      - ./apps/auth-service:/app/apps/auth-service
+      - /app/node_modules
+    ports:
+      - "3001:3000"
+    depends_on:
+      - postgres
+      - nats
+    env_file: ".env"
+    command: nx serve auth-service --watch
+
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    volumes:
+      - ./apps/user-service:/app/apps/user-service
+      - /app/node_modules
+    ports:
+      - "3002:3000"
+    depends_on:
+      - postgres
+      - nats
+    env_file: ".env"
+    command: nx serve user-service --watch
+
+  refresh-session-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    volumes:
+      - ./apps/refreshSession-service:/app/apps/refreshSession-service
+      - /app/node_modules
+    ports:
+      - "3003:3000"
+    depends_on:
+      - postgres
+      - nats
+    env_file: ".env"
+    command: nx serve refreshSession-service --watch
+
+
+  financial-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    volumes:
+      - ./apps/financial-service:/app/apps/financial-service
+      - /app/node_modules
+    ports:
+      - "3004:3000"
+    depends_on:
+      - postgres
+      - nats
+    env_file: ".env"
+    command: nx serve financial-service --watch
+
+  valute-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    volumes:
+      - ./apps/valute-service:/app/apps/valute-service
+      - /app/node_modules
+    ports:
+      - "3005:3000"
+    depends_on:
+      - postgres
+      - nats
+      - api-gateway
+    env_file: ".env"
+    command: nx serve valute-service --watch
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    volumes:
+      - ./apps/api-gateway:/app/apps/api-gateway
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - nats
+    env_file: ".env"
+    command: nx serve api-gateway --watch
+
+volumes:
+  postgres_data:
