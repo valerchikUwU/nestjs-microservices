@@ -7,12 +7,12 @@
 
 ## Getting Started
 
-```
+
 1. Install dependencies
 ```
 npm install
 ```
-3. Launch app
+2. Launch app
 ```
 docker compose up --build
 ```
