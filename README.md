@@ -7,11 +7,8 @@
 
 ## Getting Started
 
-1. Clone this repository
 ```
-git clone git@github.com:Gapur/nestjs-microservices.git
-```
-2. Install dependencies
+1. Install dependencies
 ```
 npm install
 ```
